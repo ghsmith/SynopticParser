@@ -1,0 +1,4 @@
+synoptic_name	signature_line1	signature_line2	signature_line3	diagnosis	tnm
+breast	Procedure	Lymph Node Sampling	Specimen Laterality	Presence of Invasive Carcinoma	Primary Tumor (Invasive Carcinoma) (pT);Regional Lymph Nodes (pN)
+lung	Specimen	Procedure	Specimen Integrity	Histologic Type	Primary Tumor (pT);Regional Lymph Nodes (pN);Distant Metastasis (pM)
+pancreas	Specimen	Procedure	Tumor Site	Histologic Type	Primary Tumor (pT);Regional Lymph Nodes (pN);Distant Metastasis (pM)

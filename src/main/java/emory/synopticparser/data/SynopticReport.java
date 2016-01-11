@@ -9,6 +9,7 @@ import java.util.Map;
  */
 public class SynopticReport {
     public String accessionNumber;
+    public String part;
     public Map<String, String> nameValueMap = new HashMap<>();
     public String signatureLine1;
     public String signatureLine2;

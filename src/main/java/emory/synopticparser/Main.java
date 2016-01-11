@@ -44,6 +44,7 @@ public class Main {
             }
             sigList.add(sig);
         }
+        mapReader.close();
         LOGGER.info(sigList.size() + " signatures loaded");
         
         // *********************************************************************
@@ -92,6 +93,7 @@ public class Main {
             while((line = in.readLine()) != null && !line.startsWith("\"\tSynoptic Diagnosis")) {
             }
         }
+        in.close();
         LOGGER.info(repList.size() + " reports loaded");
 
         // *********************************************************************
@@ -129,6 +131,7 @@ public class Main {
                     System.out.println(
                         rep.accessionNumber
                         + "\t" + sig.synopticName
+                        //+ "\t" + (rep.nameValueMap.get("Specimen Laterality") != null ? rep.nameValueMap.get("Specimen Laterality") : "")
                         + "\t" + rep.nameValueMap.get(sig.diagnosis)
                         + "\t" + tnm
                     );

@@ -4,7 +4,7 @@ Java Maven project to parse diagnosis and TNM staging from CoPath synoptic repor
 Example usage:
 
 ```
-C:\stuff4>java -cp c:\users\ghsmith\Documents\NetBeansProjects\SynopticParser\target\uber-SynopticParser-1.0-SNAPSHOT.jar emory.synopticparser.Main synoptic_signature.txt synoptics201512.txt > synoptics201512.parsed.txt
+C:\stuff4>java -jar uber-SynopticParser-1.0-SNAPSHOT.jar synoptic_signature.txt synoptics201512.txt > synoptics201512.parsed.txt
 
 Jan 10, 2016 11:55:26 PM emory.synopticparser.Main main
 INFO: 3 signatures loaded

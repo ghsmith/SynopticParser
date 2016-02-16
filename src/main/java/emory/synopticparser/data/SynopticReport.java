@@ -1,6 +1,8 @@
 package emory.synopticparser.data;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -11,7 +13,6 @@ public class SynopticReport {
     public String accessionNumber;
     public String part;
     public Map<String, String> nameValueMap = new HashMap<>();
-    public String signatureLine1;
-    public String signatureLine2;
-    public String signatureLine3;
+    public List<String> signatureList = new ArrayList<>();
+    public StringBuffer body = new StringBuffer();
 }

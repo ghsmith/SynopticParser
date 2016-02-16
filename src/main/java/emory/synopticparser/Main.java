@@ -29,83 +29,96 @@ public class Main {
         // *********************************************************************
         // load the synoptic report signature definitions
         List<SynopticSignature> sigList = new ArrayList<>();
-        ICsvMapReader mapReader = new CsvMapReader(new FileReader(args[0]), CsvPreference.TAB_PREFERENCE);
-        final String[] header = mapReader.getHeader(true);
-        Map<String, String> tsvMap;
-        while((tsvMap = mapReader.read(header)) != null) {
-            SynopticSignature sig = new SynopticSignature();
-            sig.synopticName = tsvMap.get("synoptic_name");
-            sig.signatureLine1 = tsvMap.get("signature_line1");
-            sig.signatureLine2 = tsvMap.get("signature_line2");
-            sig.signatureLine3 = tsvMap.get("signature_line3");
-            sig.diagnosis = tsvMap.get("diagnosis");
-            for(String tnm : tsvMap.get("tnm").split(";")) {
-                sig.tnmList.add(tnm);
+        {
+            ICsvMapReader mapReader = new CsvMapReader(new FileReader(args[0]), CsvPreference.TAB_PREFERENCE);
+            final String[] header = mapReader.getHeader(true);
+            Map<String, String> tsvMap;
+            while((tsvMap = mapReader.read(header)) != null) {
+                SynopticSignature sig = new SynopticSignature();
+                sig.synopticName = tsvMap.get("synoptic_name");
+                for(String signature : tsvMap.get("signature").split(";")) {
+                    sig.signatureList.add(signature);
+                }
+                sig.diagnosis = tsvMap.get("diagnosis");
+                for(String tnm : tsvMap.get("tnm").split(";")) {
+                    sig.tnmList.add(tnm);
+                }
+                sigList.add(sig);
             }
-            sigList.add(sig);
+            mapReader.close();
         }
-        mapReader.close();
         LOGGER.info(sigList.size() + " signatures loaded");
         
         // *********************************************************************
         // load the synoptic report file
         List<SynopticReport> repList = new ArrayList<>();
-        //BufferedReader in = new BufferedReader(new FileReader(args[1]));
-        BufferedReader in = BufferedReaderFactory.getBufferedReaderInstance(args[1]);
-        String line;
-        String lastAccNo = null;
-        while((line = in.readLine()) != null) {
-            SynopticReport rep = new SynopticReport();
-            {
-                Pattern pattern = Pattern.compile("^(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)$");
-                Matcher matcher = pattern.matcher(line);
-                if(matcher.find()) {
-                    lastAccNo = matcher.group(5);
-                    rep.accessionNumber = lastAccNo;
-                }
-                else {
-                    // e.g., breast case might have both sides but the header only appears once
-                    rep.accessionNumber = lastAccNo;
-                }
-            }
+        {
+            BufferedReader in = BufferedReaderFactory.getBufferedReaderInstance(args[1]);
+            String line;
+            SynopticReport rep = null;
             String lastName = null;
-            int nameNumber = 1;
-            while((line = in.readLine()) != null && !line.startsWith("----------")) {
-                Pattern pattern1 = Pattern.compile("^([A-Za-z0-9].+?):(.*)$");
-                Matcher matcher1 = pattern1.matcher(line);
-                if(matcher1.find()) {
-                    lastName = matcher1.group(1).trim();
-                    rep.nameValueMap.put(lastName, matcher1.group(2).trim());
-                    if(nameNumber == 1) {rep.signatureLine1 = lastName;}
-                    if(nameNumber == 2) {rep.signatureLine2 = lastName;}
-                    if(nameNumber == 3) {rep.signatureLine3 = lastName;}
-                    nameNumber++;
-                }
-                else {
-                    Pattern pattern2 = Pattern.compile("^ *(.*)$");
-                    Matcher matcher2 = pattern2.matcher(line);
-                    if(matcher2.find()) {
-                        rep.nameValueMap.put(lastName, rep.nameValueMap.get(lastName) + "; " + matcher2.group(1).trim());
+            while((line = in.readLine()) != null) {
+                {
+                    Pattern pattern = Pattern.compile("^(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)\\t(.*)$");
+                    Matcher matcher = pattern.matcher(line);
+                    if(matcher.find()) {
+                        rep = new SynopticReport();
+                        rep.accessionNumber = matcher.group(5);
+                        rep.body.append(("[" + line + "]").trim().replaceAll(" +", " ").replaceAll("\\t+", " "));
+                        continue;
                     }
                 }
+                {
+                    if(line.startsWith("----------")) {
+                        repList.add(rep);
+                        String lastAccNo = rep.accessionNumber;
+                        rep = new SynopticReport();
+                        rep.accessionNumber = lastAccNo;
+                        continue;
+                    }
+                }
+                {
+                    Pattern pattern1 = Pattern.compile("^([A-Za-z0-9].+?):(.*)$");
+                    Matcher matcher1 = pattern1.matcher(line);
+                    if(matcher1.find()) {
+                        lastName = matcher1.group(1).trim();
+                        rep.nameValueMap.put(lastName, matcher1.group(2).trim());
+                        if(matcher1.group(2).trim().length() > 1) {
+                            rep.signatureList.add(lastName);
+                        }
+                    }
+                    else {
+                        Pattern pattern2 = Pattern.compile("^ *(.*)$");
+                        Matcher matcher2 = pattern2.matcher(line);
+                        if(matcher2.find()) {
+                            rep.nameValueMap.put(lastName, rep.nameValueMap.get(lastName) + "; " + matcher2.group(1).trim());
+                        }
+                    }
+                    rep.body.append(("[" + line + "]").trim().replaceAll(" +", " ").replaceAll("\\t+", " "));
+                    continue;
+                }
             }
-            repList.add(rep);
-            while((line = in.readLine()) != null && !line.startsWith("\"\tSynoptic Diagnosis")) {
-            }
+            in.close();
         }
-        in.close();
         LOGGER.info(repList.size() + " reports loaded");
 
         // *********************************************************************
         // extract the diagnosis and staging information from the synoptic
         // reports
         for(SynopticReport rep : repList) {
+            boolean matchRep = false;
             for(SynopticSignature sig : sigList) {
-                if(
-                    rep.signatureLine1.equals(sig.signatureLine1)
-                    && rep.signatureLine2.equals(sig.signatureLine2)
-                    && rep.signatureLine3.equals(sig.signatureLine3)
-                ) {
+                boolean match = true;
+                int sigNameIndex = 0;
+                for(String sigName : sig.signatureList) {
+                    //System.out.println(sigName + " == " + rep.signatureList.get(sigNameIndex));
+                    if(!sigName.equals(rep.signatureList.get(sigNameIndex++))) {
+                        match = false;
+                        break;
+                    }
+                }
+                if(match) {
+                    matchRep = true;
                     StringBuilder tnm = new StringBuilder();
                     {
                         StringBuilder tnmValues = new StringBuilder();
@@ -131,11 +144,42 @@ public class Main {
                     System.out.println(
                         rep.accessionNumber
                         + "\t" + sig.synopticName
-                        //+ "\t" + (rep.nameValueMap.get("Specimen Laterality") != null ? rep.nameValueMap.get("Specimen Laterality") : "")
                         + "\t" + rep.nameValueMap.get(sig.diagnosis)
                         + "\t" + tnm
+                        + "\t" + rep.body.toString()
                     );
                 }
+            }
+            if(!matchRep) {
+                StringBuilder tnm = new StringBuilder();
+                {
+                    StringBuilder allValues = new StringBuilder();
+                    for(String name : rep.nameValueMap.keySet()) {
+                        allValues.append(rep.nameValueMap.get(name));
+                    }
+                    Pattern pattern1 = Pattern.compile("(pT[^ :]*)");
+                    Matcher matcher1 = pattern1.matcher(allValues);
+                    while(matcher1.find()) {
+                        tnm.append(matcher1.group(1));
+                    }
+                    Pattern pattern2 = Pattern.compile("p(N[^ :]*)");
+                    Matcher matcher2 = pattern2.matcher(allValues);
+                    while(matcher2.find()) {
+                        tnm.append(matcher2.group(1));
+                    }
+                    Pattern pattern3 = Pattern.compile("p(M[^ :]*)");
+                    Matcher matcher3 = pattern3.matcher(allValues);
+                    while(matcher3.find()) {
+                        tnm.append(matcher3.group(1));
+                    }
+                }
+                System.out.println(
+                    rep.accessionNumber
+                    + "\t" + "unknown"
+                    + "\t" + "unknown"
+                    + "\t" + tnm
+                    + "\t" + rep.body.toString()
+                );
             }
         }
         
